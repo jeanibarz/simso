@@ -208,6 +208,8 @@ def gen_kato_utilizations(nsets, umin, umax, target_util):
             u = random.uniform(umin, umax)
             if u + total_util > target_util:
                 u = target_util - total_util
+                if u < umin:
+                    raise RuntimeWarning('Minimal task utilization constraint umin>=%d unsatisfied for one task'.format({umin}))
             total_util += u
             task_set.append(u)
         sets.append(task_set)
