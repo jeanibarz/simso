@@ -1,4 +1,4 @@
-from simso.generator.task_generator import gen_kato_aperiodic_tasks_set
+from simso.generator.TaskGenerator import gen_kato_aperiodic_tasks_set
 
 
 def test_generating_set():
