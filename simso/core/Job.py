@@ -40,9 +40,9 @@ class Job(Process):
         self._activation_date = self.sim.now_ms()
         self._absolute_deadline = self.sim.now_ms() + task.deadline
         self._aborted = False
-        self._sim = sim
+        self._sim = sim # should be removed ?
         self._monitor = monitor
-        self._etm = etm
+        self._etm = etm # should be removed ?
         self._was_running_on = task.cpu
 
         self._on_activate()
