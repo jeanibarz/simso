@@ -128,25 +128,25 @@ class GenericTask(Process):
         :type task_info: TaskInfo
         """
         Process.__init__(self, name=task_info.name, sim=sim)
-        self.name = task_info.name
-        self._task_info = task_info
+        self.name = task_info.name # should be removed ?
+        self._task_info = task_info # should be removed ?
         self._monitor = Monitor(name="Monitor" + self.name + "_states",
                                 sim=sim)
         self._activations_fifo = deque([])
-        self._sim = sim
-        self.cpu = None
-        self._etm = sim.etm
-        self._job_count = 0
-        self._last_cpu = None
-        self._cpi_alone = {}
-        self._jobs = []
-        self.job = None
+        self._sim = sim # should be removed ?
+        self.cpu = None # should be removed ?
+        self._etm = sim.etm # should be removed ?
+        self._job_count = 0 # ???
+        self._last_cpu = None # should be removed ?
+        self._cpi_alone = {} # ???
+        self._jobs = [] # list of all created jobs
+        self.job = None # current active job, should be refactored so that multiple jobs can be active at the same time
 
     def __lt__(self, other):
-        return self.identifier < other.identifier
+        return self.identifier < other.identifier # no way !
 
     def is_active(self):
-        return self.job is not None and self.job.is_active()
+        return self.job is not None and self.job.is_active() # should be removed as an "active task" has no meaning
 
     def set_cpi_alone(self, proc, cpi):
         self._cpi_alone[proc] = cpi
@@ -230,16 +230,20 @@ class GenericTask(Process):
         """
         return self._monitor
 
+    # TODO: add simso.core.Model as parameter to the function to remove dependancy
     @property
     def followed_by(self):
         """
         Task that is activated by the end of a job from this task.
         """
+
+        # TODO: add a unittest to ensure that sim has a task_list variable
         if self._task_info.followed_by is not None:
             followed = [x for x in self._sim.task_list
                         if (x.identifier == self._task_info.followed_by)]
             if followed:
                 return followed[0]
+            # TODO: raise an exception if followed task has not been found
         return None
 
     @property
@@ -254,11 +258,13 @@ class GenericTask(Process):
         if self.followed_by:
             self.followed_by.create_job(job)
 
+        # Remove the job
         if len(self._activations_fifo) > 0:
             self._activations_fifo.popleft()
+        # Activate the next job
         if len(self._activations_fifo) > 0:
             self.job = self._activations_fifo[0]
-            self.sim.activate(self.job, self.job.activate_job())
+            self.sim.activate(self.job, self.job.activate_job()) # TODO: refactor this to remove simso.core.Model dependancy
 
     def _job_killer(self, job):
         if job.end_date is None and job.computation_time < job.wcet:
@@ -292,7 +298,7 @@ class GenericTask(Process):
 
 class ATask(GenericTask):
     """
-    Non-periodic Task process. Inherits from :class:`GenericTask`. The job is
+    Non-periodic Task process. Inherits from :class:`GenericTask`. The jobs are
     created by another task.
     """
     fields = ['deadline', 'wcet']
@@ -309,6 +315,7 @@ class PTask(GenericTask):
     """
     fields = ['activation_date', 'period', 'deadline', 'wcet']
 
+    # TODO: add simso.core.Model as parameter to the function to remove dependancy
     def execute(self):
         self._init()
         # wait the activation date.
@@ -318,6 +325,7 @@ class PTask(GenericTask):
         while True:
             #print self.sim.now(), "activate", self.name
             self.create_job()
+            # TODO: add unittest to check for cycles_per_ms in simso.core.Model
             yield hold, self, int(self.period * self._sim.cycles_per_ms)
 
 
@@ -328,10 +336,12 @@ class SporadicTask(GenericTask):
     """
     fields = ['list_activation_dates', 'deadline', 'wcet']
 
+    # TODO: add simso.core.Model as parameter to the function to remove dependancy
     def execute(self):
 
         self._init()
         for ndate in self.list_activation_dates:
+            # TODO: add unittest to check for cycles_per_ms in simso.core.Model
             yield hold, self, int(ndate * self._sim.cycles_per_ms) \
                 - self._sim.now()
             self.create_job()
@@ -347,7 +357,7 @@ task_types = {
     "Sporadic": SporadicTask
 }
 
-task_types_names = ["Periodic", "APeriodic", "Sporadic"]
+task_types_names = task_types.keys()
 
 
 def Task(sim, task_info):
