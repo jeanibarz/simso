@@ -173,7 +173,7 @@ def StaffordRandFixedSum(n, u) -> list:
 
 def Ripoll(compute, deadline, period, target_util) -> List[tuple]:
     """
-    Ripoll et al. tasksets generator.
+    Ripoll et al. tasksets generator_tests.
 
     Args:
         - `compute`: Maximum computation time of a task.
@@ -199,7 +199,7 @@ def Ripoll(compute, deadline, period, target_util) -> List[tuple]:
 
 def Kato(umin, umax, target_util) -> list:
     """
-    Kato et al. tasksets generator.
+    Kato et al. tasksets generator_tests.
 
     A task set Γ is generated as follows. A new periodic task is appended
     to Γ as long as U(Γ) ≤ Utot is satisfied. For each task τi, its
@@ -316,21 +316,6 @@ def gen_kato_aperiodic_tasks_set(total_utilization: float, total_duration, perio
     if not total_utilization >= 0:
         raise ValueError('total_utilization must be non negative')
 
-    # Defines tasks periods (mean inter-arrival time)
-    generic_map_dist_types = {'unif': DistTypeEnum.UNIFORM, 'lunif': DistTypeEnum.LOGUNIFORM,
-                              'discrete': DistTypeEnum.DISCRETE}
-    try:
-        periods_dist_type = generic_map_dist_types[periods_dist['dist_type']]
-    except KeyError:
-        raise ValueError('period distribution type is invalid')
-    tasks_caracs.periods = gen_random_values(dist_type=periods_dist_type,
-                                             n=tasks_caracs.tasks_nbr, low=periods_dist['min'],
-                                             high=periods_dist['max'],
-                                             round_to_int=periods_dist['round_to_integer'])
-
-    # Gets an integer number of jobs that fits in the simulation
-    tasks_caracs.jobs_nbr = [math.floor(total_duration / period) for period in tasks_caracs.periods]
-
     valid_utilization = False
     for utilization_nbr_retry in range(100):
         # Use Kato algorithm to define each task's utilization value
@@ -349,7 +334,7 @@ def gen_kato_aperiodic_tasks_set(total_utilization: float, total_duration, perio
             try:
                 tasks_caracs.utilizations = Kato(umin=min_utilization,
                                                  umax=max_utilization,
-                                                 target_util=total_utilization, error_tol=5.0 / 100)
+                                                 target_util=total_utilization)
                 tasks_caracs.tasks_nbr = len(tasks_caracs.utilizations)
                 if tasks_caracs.tasks_nbr > 0:
                     valid_kato = True
@@ -360,6 +345,21 @@ def gen_kato_aperiodic_tasks_set(total_utilization: float, total_duration, perio
             raise RuntimeError('Kato generation failed {} consecutive times !'.format(kato_nbr_retry))
 
         assert len(tasks_caracs.utilizations) == tasks_caracs.tasks_nbr
+
+        # Defines tasks periods (mean inter-arrival time)
+        generic_map_dist_types = {'uniform': DistTypeEnum.UNIFORM, 'loguniform': DistTypeEnum.LOGUNIFORM,
+                                  'discrete': DistTypeEnum.DISCRETE}
+        try:
+            periods_dist_type = generic_map_dist_types[periods_dist['dist_type']]
+        except KeyError:
+            raise ValueError('period distribution type is invalid')
+        tasks_caracs.periods = gen_random_values(dist_type=periods_dist_type,
+                                                 n=tasks_caracs.tasks_nbr, low=periods_dist['min'],
+                                                 high=periods_dist['max'],
+                                                 round_to_int=periods_dist['round_to_integer'])
+
+        # Gets an integer number of jobs that fits in the simulation
+        tasks_caracs.jobs_nbr = [math.floor(total_duration / period) for period in tasks_caracs.periods]
 
         # Generate task's jobs costs (a constant execution speed of 1.0 is assumed)
         tasks_caracs.jobs_execution_cost = [ui * (total_duration / ni) for ui, ni in
@@ -417,7 +417,7 @@ def gen_kato_aperiodic_tasks_set(total_utilization: float, total_duration, perio
         soft_tol_dist_type = generic_map_dist_types[soft_tol_dist['dist_type']]
     except KeyError:
         raise ValueError('firm_tol distribution type is invalid')
-    tasks_caracs.firm_tol = gen_random_values(dist_type=soft_tol_dist_type,
+    tasks_caracs.soft_tol = gen_random_values(dist_type=soft_tol_dist_type,
                                               n=tasks_caracs.tasks_nbr, low=soft_tol_dist['min'],
                                               high=soft_tol_dist['max'],
                                               round_to_int=soft_tol_dist['round_to_integer'])
