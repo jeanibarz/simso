@@ -20,7 +20,8 @@ setup(
     packages=find_packages(),
     install_requires=[
         'SimPy==2.3.1',
-        'numpy>=1.6'
+        'numpy>=1.6',
+        'pytest>=3.10.0'
     ],
     long_description="""\
 SimSo is a scheduling simulator for real-time multiprocessor architectures that
