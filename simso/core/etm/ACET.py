@@ -16,6 +16,7 @@ class ACET(AbstractExecutionTimeModel):
     def init(self):
         pass
 
+    # TODO: add (current_time, cpu_speed) parameter to remove resp. simso.core.Model dependancy and simso.core.Processor dependancy
     def update_executed(self, job):
         if job in self.on_execute_date:
             self.executed[job] += (self.sim.now() - self.on_execute_date[job]
@@ -23,6 +24,7 @@ class ACET(AbstractExecutionTimeModel):
 
             del self.on_execute_date[job]
 
+    # TODO: add cycles_per_ms parameter to remove simso.core.Model dependancy
     def on_activate(self, job):
         self.executed[job] = 0
         self.et[job] = min(
@@ -30,6 +32,7 @@ class ACET(AbstractExecutionTimeModel):
             random.normalvariate(job.task.acet, job.task.et_stddev)
         ) * self.sim.cycles_per_ms
 
+    # TODO: add current_time parameter to remove simso.core.Model dependancy
     def on_execute(self, job):
         self.on_execute_date[job] = self.sim.now()
 
@@ -44,6 +47,7 @@ class ACET(AbstractExecutionTimeModel):
         self.update_executed(job)
         del self.et[job]
 
+    # TODO: add (current_time, cpu_speed) parameter to remove resp. simso.core.Model dependancy and simso.core.Processor dependancy
     def get_executed(self, job):
         if job in self.on_execute_date:
             c = (self.sim.now() - self.on_execute_date[job]) * job.cpu.speed
