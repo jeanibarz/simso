@@ -2,11 +2,30 @@
 Tools for generating task sets.
 """
 
+import copy
 import math
 import random
+from collections import namedtuple
+from enum import Enum
 from typing import List
 
 import numpy as np
+
+from simso.core.Task import TaskInfo
+
+
+class GeneratorEnum(Enum):
+    UNDEFINED = 0
+    STAFFORD_RAND_FIXED_SUM = 1
+    UUNI_FAST_DISCARD = 2
+    KATO = 3
+    RIPOLL = 4
+
+
+class DistTypeEnum(Enum):
+    UNIFORM = 0
+    LOGUNIFORM = 1
+    DISCRETE = 2
 
 
 def UUniFastDiscard(n, u) -> list:
@@ -232,13 +251,13 @@ def gen_poisson_arrivals(period, min_, max_, round_to_int=False) -> list:
     return dates
 
 
-def gen_random_values(dist_type, n, low=0, high=1, round_to_int=False, choices=[]):
-    if dist_type == 'uniform':
+def gen_random_values(dist_type: DistTypeEnum, n, low=0, high=1, round_to_int=False, choices=[]):
+    if dist_type is DistTypeEnum.UNIFORM:
         periods = np.random.uniform(low=low, high=high, size=n)
-    elif dist_type == 'loguniform':
+    elif dist_type is DistTypeEnum.LOGUNIFORM:
         periods = np.exp(np.random.uniform(low=np.log(low), high=np.log(high),
                                            size=n))
-    elif dist_type == 'discrete':
+    elif dist_type is DistTypeEnum.DISCRETE:
         assert len(choices) >= 1
         try:
             periods = np.random.choice(choices, size=n)
@@ -251,7 +270,7 @@ def gen_random_values(dist_type, n, low=0, high=1, round_to_int=False, choices=[
         return periods.tolist()
 
 
-def gen_taskset(utilizations, periods) -> list:
+def gen_tasks_costs(utilizations, periods) -> list:
     """
     Take a list of task utilization and a list of task period and
     return a list of couples (c, p). The computation times are truncated
@@ -275,3 +294,173 @@ def gen_taskset(utilizations, periods) -> list:
         return int(x * 10 ** p) / float(10 ** p)
 
     return [(trunc(ui * pi, 6), trunc(pi, 6)) for ui, pi in zip(utilizations, periods)]
+
+
+def gen_kato_aperiodic_tasks_set(total_utilization: float, total_duration, periods_dist, max_utilization_relative_error=0.05,
+                                 values_dist=None, firm_tol_dist=None, soft_tol_dist=None, ) -> List[TaskInfo]:
+    """
+    Args :
+    :param total_utilization:
+    :param total_duration:
+    :param periods_dist: period sampling type
+    :param max_utilization_relative_error:
+    :param values_dist: dictionary {'dist_type','min','max'}
+    :param firm_tol_dist: dictionary {'dist_type','min','max'}
+    :param soft_tol_dist: dictionary {'dist_type','min','max'}
+    :return: a list of TaskInfo objects
+    """
+    tasks_caracs = namedtuple('tasks_caracs',
+                              ['tasks_nbr', 'utilizations', 'periods', 'values', 'jobs_nbr', 'jobs_execution_cost',
+                               'firm_tol', 'soft_tol'])
+    # Check arguments
+    if not total_utilization >= 0:
+        raise ValueError('total_utilization must be non negative')
+
+    # Defines tasks periods (mean inter-arrival time)
+    generic_map_dist_types = {'unif': DistTypeEnum.UNIFORM, 'lunif': DistTypeEnum.LOGUNIFORM,
+                              'discrete': DistTypeEnum.DISCRETE}
+    try:
+        periods_dist_type = generic_map_dist_types[periods_dist['dist_type']]
+    except KeyError:
+        raise ValueError('period distribution type is invalid')
+    tasks_caracs.periods = gen_random_values(dist_type=periods_dist_type,
+                                             n=tasks_caracs.tasks_nbr, low=periods_dist['min'],
+                                             high=periods_dist['max'],
+                                             round_to_int=periods_dist['round_to_integer'])
+
+    # Gets an integer number of jobs that fits in the simulation
+    tasks_caracs.jobs_nbr = [math.floor(total_duration / period) for period in tasks_caracs.periods]
+
+    valid_utilization = False
+    for utilization_nbr_retry in range(100):
+        # Use Kato algorithm to define each task's utilization value
+        max_jobs_nbr = math.floor(total_duration / periods_dist['min'])
+        min_utilization = 3 * max_jobs_nbr / total_duration
+        max_utilization = 0.5
+        if not min_utilization >= 0:
+            raise ValueError('min_utilization must be positive')
+        if not (max_utilization >= 0 and max_utilization <= 1):
+            raise ValueError('max_utilization must be in [0;1]')
+        if not min_utilization <= max_utilization:
+            raise ValueError('min_utilization must be less (or equal) then max_utilization')
+
+        valid_kato = False
+        for kato_nbr_retry in range(0, 100):
+            try:
+                tasks_caracs.utilizations = Kato(umin=min_utilization,
+                                                 umax=max_utilization,
+                                                 target_util=total_utilization, error_tol=5.0 / 100)
+                tasks_caracs.tasks_nbr = len(tasks_caracs.utilizations)
+                if tasks_caracs.tasks_nbr > 0:
+                    valid_kato = True
+                    break
+            except RuntimeWarning:
+                continue
+        if not valid_kato:
+            raise RuntimeError('Kato generation failed {} consecutive times !'.format(kato_nbr_retry))
+
+        assert len(tasks_caracs.utilizations) == tasks_caracs.tasks_nbr
+
+        # Generate task's jobs costs (a constant execution speed of 1.0 is assumed)
+        tasks_caracs.jobs_execution_cost = [ui * (total_duration / ni) for ui, ni in
+                                            zip(tasks_caracs.utilizations, tasks_caracs.jobs_nbr)]
+
+        # Adjust task's jobs costs
+        error = 0
+        tasks_set = sorted(
+            list(zip(tasks_caracs.jobs_nbr, tasks_caracs.jobs_execution_cost, range(0, tasks_caracs.tasks_nbr))),
+            reverse=True)
+        for ni, ci, i in tasks_set:
+            new_ci_upper = math.ceil(ci)
+            assert new_ci_upper > 0
+
+            l_new_ci = []
+            for j in range(0, min(new_ci_upper, 3)):
+                l_new_ci.append(new_ci_upper - j)
+            for j in range(1, 3):
+                l_new_ci.append(new_ci_upper + j)
+
+            # select the cost that will minimize the new aggregated error
+            l_abs_new_errors = list(map(lambda _new_ci: abs(error + (_new_ci - ci) * ni), l_new_ci))
+            best_ci_index = np.argmin(l_abs_new_errors)
+            new_ci = l_new_ci[best_ci_index]
+            assert new_ci > 0
+            # prev_error = error
+            # new_error = error + (new_ci - ci) * ni
+            error += (new_ci - ci) * ni
+            tasks_caracs.jobs_execution_cost[i] = new_ci
+        del tasks_set
+        del error
+
+        total_execution_cost = sum([ni * ci for ni, ci in zip(tasks_caracs.jobs_nbr, tasks_caracs.jobs_execution_cost)])
+        obtained_total_utilization = total_execution_cost / total_duration
+        relative_utilization_error = (obtained_total_utilization - total_utilization) / total_utilization
+        if abs(relative_utilization_error) <= max_utilization_relative_error:
+            valid_utilization = True
+            break
+    if not valid_utilization:
+        raise RuntimeError('Failed to satisfy max_utilization_relative_error after {} consecutive times !'.format(
+            utilization_nbr_retry))
+
+    # Defines tasks firm tolerances (or base laxity : relative deadline - ci)
+    try:
+        firm_tol_dist_type = generic_map_dist_types[firm_tol_dist['dist_type']]
+    except KeyError:
+        raise ValueError('firm_tol distribution type is invalid')
+    tasks_caracs.firm_tol = gen_random_values(dist_type=firm_tol_dist_type,
+                                              n=tasks_caracs.tasks_nbr, low=firm_tol_dist['min'],
+                                              high=firm_tol_dist['max'],
+                                              round_to_int=firm_tol_dist['round_to_integer'])
+
+    # Defines tasks soft tolerances
+    try:
+        soft_tol_dist_type = generic_map_dist_types[soft_tol_dist['dist_type']]
+    except KeyError:
+        raise ValueError('firm_tol distribution type is invalid')
+    tasks_caracs.firm_tol = gen_random_values(dist_type=soft_tol_dist_type,
+                                              n=tasks_caracs.tasks_nbr, low=soft_tol_dist['min'],
+                                              high=soft_tol_dist['max'],
+                                              round_to_int=soft_tol_dist['round_to_integer'])
+
+    # Defines tasks values
+    if values_dist['dist_type'] == 'wcet_prop':
+        tasks_caracs.values = [ci for ci in tasks_caracs.jobs_execution_cost]
+    elif values_dist['dist_type'] == 'inv_wcet_prop':
+        tasks_caracs.values = [1.0 / ci for ci in tasks_caracs.jobs_execution_cost]
+    else:
+        try:
+            values_dist_type = generic_map_dist_types[values_dist['dist_type']]
+        except KeyError:
+            raise ValueError('firm_tol distribution type is invalid')
+        tasks_caracs.values = gen_random_values(dist_type=values_dist_type,
+                                                n=tasks_caracs.tasks_nbr, low=values_dist['min'],
+                                                high=values_dist['max'],
+                                                round_to_int=values_dist['round_to_integer'])
+
+    # Defines tasks base data
+    base_data = {'rt_constraint': 'SOFT_RT', 'importance_value': 1, 'deadline_tolerance': 0}
+
+    # Defines tasks set
+    task_info_list = []
+    for i in range(tasks_caracs.tasks_nbr):
+        task_data = copy.deepcopy(base_data)
+        ci = tasks_caracs.jobs_execution_cost[i]
+        vi = tasks_caracs.values[i]
+        ni = tasks_caracs.jobs_nbr[i]
+        di = ci + tasks_caracs.firm_tol[i]
+
+        task_data['deadline_tolerance'] = tasks_caracs.soft_tol[i]
+        task_data['importance_value'] = vi
+
+        list_activation_dates = gen_random_values(dist_type=DistTypeEnum.UNIFORM, n=ni, low=0,
+                                                  high=total_duration - math.ceil(ci),
+                                                  round_to_int=True)
+        task_info_list.append(TaskInfo(name="Task " + str(i), identifier=i, task_type="Sporadic",
+                                       abort_on_miss=False, period=None,
+                                       activation_date=0, n_instr=0, mix=0,
+                                       stack_file=('', ''), wcet=ci, acet=0, et_stddev=0,
+                                       deadline=di, base_cpi=0.0, followed_by=None,
+                                       list_activation_dates=list_activation_dates,
+                                       preemption_cost=0, data=task_data))
+
+    return task_info_list
