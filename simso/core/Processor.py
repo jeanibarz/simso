@@ -148,14 +148,9 @@ class Processor(Process):
             if not self._evts:
                 job = self._running
                 if job:
-                    yield waituntil, self, lambda: job.context_ok
-                    self.monitor.observe(ProcCxtLoadEvent())
-                    yield hold, self, self.cl_overhead  # overhead load context
-                    self.monitor.observe(ProcCxtLoadEvent(terminated=True))
                     job.interruptReset()
                     self.sim.reactivate(job)
                     self.monitor.observe(ProcRunEvent(job))
-                    job.context_ok = False
                 else:
                     self.monitor.observe(ProcIdleEvent())
 
@@ -163,10 +158,6 @@ class Processor(Process):
                 yield waituntil, self, lambda: self._evts
                 if job:
                     self.interrupt(job)
-                    self.monitor.observe(ProcCxtSaveEvent())
-                    yield hold, self, self.cs_overhead  # overhead save context
-                    self.monitor.observe(ProcCxtSaveEvent(terminated=True))
-                    job.context_ok = True
 
             evt = self._evts.popleft()
             if evt[0] == RESCHED:

@@ -46,7 +46,7 @@ class WCET(AbstractExecutionTimeModel):
     # TODO: add cycles_per_ms parameter to remove simso.core.Model dependancy
     def get_ret(self, job):
         # WARNING : possible side effects due to truncatures here !
-        wcet_cycles = int(job.wcet * self.sim.cycles_per_ms)
+        wcet_cycles = int(job.base_exec_cost * self.sim.cycles_per_ms)
         return int(wcet_cycles - self.get_executed(job))
 
     def update(self):

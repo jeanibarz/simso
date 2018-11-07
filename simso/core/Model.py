@@ -2,11 +2,11 @@
 
 from SimPy.Simulation import Simulation
 from simso.core.Processor import Processor
-from simso.core.Task import Task
 from simso.core.Timer import Timer
 from simso.core.etm import execution_time_models
 from simso.core.Logger import Logger
 from simso.core.results import Results
+from simso.core.Task import SporadicTask
 
 
 class Model(Simulation):
@@ -42,7 +42,7 @@ class Model(Simulation):
 
         self._tasks_list = []
         for task_info in task_info_list:
-            self._tasks_list.append(Task(self, task_info))
+            self._tasks_list.append(SporadicTask(self, task_info))
 
         # Init the processor class. This will in particular reinit the
         # identifiers to 0.

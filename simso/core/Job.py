@@ -9,7 +9,7 @@ class Job(Process):
     """The Job class simulate the behavior of a real Job. This *should* only be
     instantiated by a Task."""
 
-    def __init__(self, task, name, pred, monitor, etm, sim):
+    def __init__(self, task, name, monitor, etm, sim):
         """
         Args:
             - `task`: The parent :class:`task <simso.core.Task.Task>`.
@@ -29,11 +29,8 @@ class Job(Process):
         """
         Process.__init__(self, name=name, sim=sim)
         self._task = task
-        self._pred = pred
-        self.instr_count = 0  # Updated by the cache model.
         self._computation_time = 0
         self._last_exec = None
-        self._n_instr = task.n_instr
         self._start_date = None
         self._end_date = None
         self._is_preempted = False
@@ -44,10 +41,8 @@ class Job(Process):
         self._monitor = monitor
         self._etm = etm # should be removed ?
         self._was_running_on = task.cpu
-
         self._on_activate()
 
-        self.context_ok = True  # The context is ready to be loaded.
 
     def is_active(self):
         """
@@ -238,14 +233,6 @@ class Job(Process):
         return self._task.data
 
     @property
-    def wcet(self):
-        """
-        Worst-Case Execution Time in milliseconds.
-        Equivalent to ``self.task.wcet``.
-        """
-        return self._task.wcet
-
-    @property
     def activation_date(self):
         """
         Activation date in milliseconds for this job.
@@ -263,6 +250,10 @@ class Job(Process):
     @property
     def absolute_deadline_cycles(self):
         return self._absolute_deadline * self._sim.cycles_per_ms
+
+    @property
+    def base_exec_cost(self):
+        return self._task._task_info.base_exec_cost
 
     @property
     def period(self):

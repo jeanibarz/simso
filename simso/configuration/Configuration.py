@@ -6,12 +6,10 @@ import re
 from xml.dom import minidom
 from simso.core.Scheduler import SchedulerInfo
 from simso.core import Scheduler
-from simso.core.Task import TaskInfo
+from simso.core.Task import TaskInfo, AbortConditionEnum
 from simso.core.Processor import ProcInfo
-
 from .GenerateConfiguration import generate
 from .parser import Parser
-
 
 # Hack for Python2
 if not hasattr(minidom.NamedNodeMap, '__contains__'):
@@ -27,8 +25,10 @@ def _gcd(*numbers):
 # Least common multiple is not in standard libraries?
 def _lcm(numbers):
     """Return lowest common multiple."""
+
     def lcm(a, b):
         return (a * b) // _gcd(a, b)
+
     return reduce(lcm, numbers, 1)
 
 
@@ -38,6 +38,7 @@ class Configuration(object):
     of this class will be passed to the constructor of the
     :class:`Model <simso.core.Model.Model>` class.
     """
+
     def __init__(self, filename=None):
         """
         Args:
@@ -156,7 +157,7 @@ class Configuration(object):
         for index, proc in enumerate(self._proc_info_list):
             # Nom correct :
             assert re.match('^[a-zA-Z][a-zA-Z0-9 _-]*$', proc.name), \
-                "A processor name must begins with a letter and must not "\
+                "A processor name must begins with a letter and must not " \
                 "contains any special character."
             # Id unique :
             assert proc.identifier not in [
@@ -171,50 +172,26 @@ class Configuration(object):
 
     def check_tasks(self):
         assert len(self._task_info_list) > 0, "At least one task is needed."
-        for index, task in enumerate(self._task_info_list):
+        for index, task_info in enumerate(self._task_info_list):
             # Id unique :
-            assert task.identifier not in [
-                x.identifier for x in self._task_info_list[index + 1:]], \
+            assert task_info.uid not in [
+                x.uid for x in self._task_info_list[index + 1:]], \
                 "Tasks' identifiers must be uniques."
             # Nom correct :
-            assert re.match('^[a-zA-Z][a-zA-Z0-9 _-]*$', task.name), "A task "\
-                "name must begins with a letter and must not contains any "\
-                "special character."
+            assert re.match('^[a-zA-Z][a-zA-Z0-9 _-]*$', task_info.name), "A task " \
+                                                                     "name must begins with a letter and must not contains any " \
+                                                                     "special character."
 
-            # Activation date >= 0:
-            assert task.activation_date >= 0, \
+            #  Activation date >= 0:
+            assert task_info.activation_date >= 0, \
                 "Activation date must be positive."
 
-            # Period >= 0:
-            assert task.period >= 0, "Tasks' periods must be positives."
+            # All jobs activation dates >= 0
+            assert all(x >= 0 for x in task_info.jobs_activation_dates), "Jobs activation dates must be positives"
 
-            # Deadline >= 0:
-            assert task.deadline >= 0, "Tasks' deadlines must be positives."
+            #  Deadline >= 0:
+            assert task_info.firm_deadline >= 0, "Tasks' deadlines must be positives."
 
-            # N_instr >= 0:
-            assert task.n_instr >= 0, \
-                "A number of instructions must be positive."
-
-            # WCET >= 0:
-            assert task.wcet >= 0, "WCET must be positive."
-
-            # ACET >= 0:
-            assert task.acet >= 0, "ACET must be positive."
-
-            # ET-STDDEV >= 0:
-            assert task.et_stddev >= 0, \
-                "A standard deviation is a positive number."
-
-            # mix in [0.0, 2.0]
-            assert 0.0 <= task.mix <= 2.0, \
-                "A mix must be positive and less or equal than 2.0"
-
-            if self.etm == "cache":
-                # stack
-                assert task.stack_file, "A task needs a stack profile."
-
-                # stack ok
-                assert task.csdp, "Stack not found or empty."
 
     def check_caches(self):
         for index, cache in enumerate(self._caches_list):
@@ -231,7 +208,7 @@ class Configuration(object):
             # Taille positive :
             assert cache.size >= 0, "A cache size must be positive."
 
-            # Access time >= 0:
+            #  Access time >= 0:
             assert cache.access_time >= 0, "An access time must be positive."
 
     def get_hyperperiod(self):
@@ -277,24 +254,17 @@ class Configuration(object):
         """
         return self._scheduler_info
 
-    def add_task(self, name, identifier, task_type="Periodic",
-                 abort_on_miss=True, period=10, activation_date=0,
-                 n_instr=0, mix=0.5, stack_file="", wcet=0, acet=0,
-                 et_stddev=0, deadline=10, base_cpi=1.0, followed_by=None,
-                 list_activation_dates=[], preemption_cost=0, data=None):
+    def add_task(self, name, uid, activation_date, jobs_activation_dates, base_exec_cost, firm_deadline,
+                 base_utility_value=1, soft_deadline=0, abort_condition=AbortConditionEnum.ON_SOFT_DEADLINE):
         """
         Helper method to create a TaskInfo and add it to the list of tasks.
         """
-        if data is None:
-            data = dict((k, None) for k in self.task_data_fields)
+        task_info = TaskInfo(name=name, uid=uid, activation_date=activation_date, jobs_activation_dates=jobs_activation_dates,
+                        base_utility_value=base_utility_value, base_exec_cost=base_exec_cost,
+                        firm_deadline=firm_deadline, soft_deadline=soft_deadline, abort_condition=abort_condition)
+        self.task_info_list.append(task_info)
+        return task_info
 
-        task = TaskInfo(name, identifier, task_type, abort_on_miss, period,
-                        activation_date, n_instr, mix,
-                        (stack_file, self.cur_dir), wcet, acet, et_stddev,
-                        deadline, base_cpi, followed_by, list_activation_dates,
-                        preemption_cost, data)
-        self.task_info_list.append(task)
-        return task
 
     def add_processor(self, name, identifier, cs_overhead=0,
                       cl_overhead=0, migration_overhead=0, speed=1.0):

@@ -4,9 +4,13 @@ from collections import deque
 from SimPy.Simulation import Process, Monitor, hold, passivate
 from simso.core.Job import Job
 from simso.core.Timer import Timer
+from enum import Enum
+from typing import List
 
-import os
-import os.path
+
+class AbortConditionEnum(Enum):
+    ON_FIRM_DEADLINE = "ON_FIRM_DEADLINE",
+    ON_SOFT_DEADLINE = "ON_SOFT_DEADLINE"
 
 
 class TaskInfo(object):
@@ -16,107 +20,42 @@ class TaskInfo(object):
     :class:`Task` instances can be created.
     """
 
-    def __init__(self, name, identifier, task_type, abort_on_miss, period,
-                 activation_date, n_instr, mix, stack_file, wcet, acet,
-                 et_stddev, deadline, base_cpi, followed_by,
-                 list_activation_dates, preemption_cost, data):
+    def __init__(self, name: str, uid, activation_date: int, jobs_activation_dates: List[int], base_utility_value: int,
+                 base_exec_cost: int, firm_deadline: int, soft_deadline: int, abort_condition: AbortConditionEnum):
         """
-        :type name: str
-        :type identifier: int
-        :type task_type: str
-        :type abort_on_miss: bool
-        :type period: float
-        :type activation_date: float
-        :type n_instr: int
-        :type mix: float
-        :type stack_file: str
-        :type wcet: float
-        :type acet: float
-        :type et_stddev: float
-        :type deadline: float
-        :type base_cpi: float
-        :type followed_by: int
-        :type list_activation_dates: list
-        :type preemption_cost: int
-        :type data: dict
+        TODO: document
+
+        :param name:
+        :param uid:
+        :param activation_date:
+        :param jobs_activation_dates:
+        :param base_utility_value:
+        :param base_exec_cost:
+        :param firm_deadline:
+        :param soft_deadline:
+        :param abort_condition:
         """
         self.name = name
-        self.identifier = identifier
-        self.task_type = task_type
-        self.period = period
+        self.uid = uid  # object unique identifier
         self.activation_date = activation_date
-        self.n_instr = n_instr
-        self.mix = mix
-        self.wcet = wcet
-        self.acet = acet
-        self.et_stddev = et_stddev
-        self.base_cpi = base_cpi
-        self._stack = None
-        self._csdp = None
-        self._stack_file = ''
-        self.set_stack_file(*stack_file)
-        self.deadline = deadline
-        self.followed_by = followed_by
-        self.abort_on_miss = abort_on_miss
-        self.list_activation_dates = list_activation_dates
-        self.data = data
-        self.preemption_cost = preemption_cost
-
-    @property
-    def csdp(self):
-        """
-        Accumulated Stack Distance Profile. Used by the cache models instead of
-        the Stack Distance Profile for optimization matters.
-        """
-        return self._csdp
-
-    @property
-    def stack_file(self):
-        """
-        Stack distance profile input file.
-        """
-        return self._stack_file
-
-    def set_stack_file(self, stack_file, cur_dir):
-        """
-        Set the stack distance profile.
-        """
-        if stack_file:
-            try:
-                self._stack = TaskInfo._parse_stack(stack_file)
-                self._csdp = CSDP(self._stack)
-                self._stack_file = os.path.relpath(stack_file, cur_dir)
-            except Exception as e:
-                print("set_stack_file failed:", e)
-
-    @staticmethod
-    def _parse_stack(stack_file):
-        stack = {}
-        if stack_file and os.path.isfile(stack_file):
-            for line in open(stack_file):
-                dist, value = line.split()
-                stack[int(dist)] = float(value)
-        else:
-            stack = None
-        return stack
+        self.jobs_activation_dates = jobs_activation_dates
+        self.base_utility_value = base_utility_value
+        self.base_exec_cost = base_exec_cost
+        self.firm_deadline = firm_deadline
+        self.soft_deadline = soft_deadline
+        self.abort_condition = abort_condition
 
 
-class GenericTask(Process):
-    """
-    Abstract class for Tasks. :class:`ATask` and :class:`PTask` inherits from
-    this class.
+class SoftTask(Process):
+    next_uid = 0
 
-    These classes simulate the behavior of the simulated task. It controls the
-    release of the jobs and is able to abort the jobs that exceed their
-    deadline.
+    @classmethod
+    def set_uid(cls):
+        uid = cls.next_uid
+        cls.next_uid += 1
+        return uid
 
-    The majority of the task_info attributes are available through this class
-    too. A set of metrics such as the number of preemptions and migrations are
-    available for analysis.
-    """
-    fields = []
-
-    def __init__(self, sim, task_info):
+    def __init__(self, sim, task_info: TaskInfo):
         """
         Args:
 
@@ -127,37 +66,23 @@ class GenericTask(Process):
         :type task_info: TaskInfo
         """
         Process.__init__(self, name=task_info.name, sim=sim)
-        self.name = task_info.name # should be removed ?
-        self._task_info = task_info # should be removed ?
+        self._uid = SoftTask.next_uid
+        self.name = task_info.name  # should be removed ?
+        self._task_info = task_info  # should be removed ?
         self._monitor = Monitor(name="Monitor" + self.name + "_states",
                                 sim=sim)
         self._activations_fifo = deque([])
-        self._sim = sim # should be removed ?
-        self.cpu = None # should be removed ?
-        self._etm = sim.etm # should be removed ?
-        self._job_count = 0 # ???
-        self._last_cpu = None # should be removed ?
-        self._cpi_alone = {} # ???
-        self._jobs = [] # list of all created jobs
-        self.job = None # current active job, should be refactored so that multiple jobs can be active at the same time
+        self._sim = sim  # should be removed ?
+        self.cpu = None  # should be removed ?
+        self._etm = sim.etm  # should be removed ?
+        self._job_count = 0  # ???
+        self._last_cpu = None  # should be removed ?
+        self._cpi_alone = {}  # ???
+        self._jobs = []  # list of all created jobs
+        self.job = None  # current active job, should be refactored so that multiple jobs can be active at the same time
 
     def __lt__(self, other):
-        return self.identifier < other.identifier # no way !
-
-    def is_active(self):
-        return self.job is not None and self.job.is_active() # should be removed as an "active task" has no meaning
-
-    def set_cpi_alone(self, proc, cpi):
-        self._cpi_alone[proc] = cpi
-
-    def get_cpi_alone(self, proc=None):
-        if proc is None:
-            proc = self.cpu
-        return self._cpi_alone[proc]
-
-    @property
-    def base_cpi(self):
-        return self._task_info.base_cpi
+        return self.identifier < other.identifier  # no way !
 
     @property
     def data(self):
@@ -171,41 +96,7 @@ class GenericTask(Process):
         """
         Deadline in milliseconds.
         """
-        return self._task_info.deadline
-
-    @property
-    def n_instr(self):
-        return self._task_info.n_instr
-
-    @property
-    def mix(self):
-        return self._task_info.mix
-
-    @property
-    def csdp(self):
-        return self._task_info.csdp
-
-    @property
-    def preemption_cost(self):
-        return self._task_info.preemption_cost
-
-    @property
-    def footprint(self):
-        return int(self._task_info.n_instr * self._task_info.mix *
-                   (1 - self._task_info.csdp.get(-1)))
-
-    @property
-    def wcet(self):
-        """Worst-Case Execution Time in milliseconds."""
-        return self._task_info.wcet
-
-    @property
-    def acet(self):
-        return self._task_info.acet
-
-    @property
-    def et_stddev(self):
-        return self._task_info.et_stddev
+        return self._task_info.firm_deadline
 
     @property
     def period(self):
@@ -229,22 +120,6 @@ class GenericTask(Process):
         """
         return self._monitor
 
-    # TODO: add simso.core.Model as parameter to the function to remove dependancy
-    @property
-    def followed_by(self):
-        """
-        Task that is activated by the end of a job from this task.
-        """
-
-        # TODO: add a unittest to ensure that sim has a task_list variable
-        if self._task_info.followed_by is not None:
-            followed = [x for x in self._sim.task_list
-                        if (x.identifier == self._task_info.followed_by)]
-            if followed:
-                return followed[0]
-            # TODO: raise an exception if followed task has not been found
-        return None
-
     @property
     def jobs(self):
         """
@@ -252,10 +127,9 @@ class GenericTask(Process):
         """
         return self._jobs
 
+    # TODO: to be modified, a task has not to start automatically a new jobs : they are activated following the activation dates only
     def end_job(self, job):
         self._last_cpu = self.cpu
-        if self.followed_by:
-            self.followed_by.create_job(job)
 
         # Remove the job
         if len(self._activations_fifo) > 0:
@@ -263,22 +137,24 @@ class GenericTask(Process):
         # Activate the next job
         if len(self._activations_fifo) > 0:
             self.job = self._activations_fifo[0]
-            self.sim.activate(self.job, self.job.activate_job()) # TODO: refactor this to remove simso.core.Model dependancy
+            self.sim.activate(self.job,
+                              self.job.activate_job())  # TODO: refactor this to remove simso.core.Model dependancy
 
+    # TODO: to be removed ?
     def _job_killer(self, job):
         if job.end_date is None and job.computation_time < job.wcet:
             if self._task_info.abort_on_miss:
                 self.cancel(job)
                 job.abort()
 
-    def create_job(self, pred=None):
+    # TODO: to be removed ?
+    def create_job(self, ref_time, pred=None):
         """
         Create a new job from this task. This should probably not be used
         directly by a scheduler.
         """
         self._job_count += 1
-        job = Job(self, "{}_{}".format(self.name, self._job_count), pred,
-                  monitor=self._monitor, etm=self._etm, sim=self.sim)
+        job = Job(self, name="{}_{}".format(self.name, self._job_count), monitor=self._monitor, etm=self._etm, sim=self.sim)
 
         if len(self._activations_fifo) == 0:
             self.job = job
@@ -286,7 +162,7 @@ class GenericTask(Process):
         self._activations_fifo.append(job)
         self._jobs.append(job)
 
-        timer_deadline = Timer(self.sim, GenericTask._job_killer,
+        timer_deadline = Timer(self.sim, SoftTask._job_killer,
                                (self, job), self.deadline)
         timer_deadline.start()
 
@@ -295,74 +171,22 @@ class GenericTask(Process):
             self.cpu = self._sim.processors[0]
 
 
-class ATask(GenericTask):
+class SporadicTask(SoftTask):
     """
-    Non-periodic Task process. Inherits from :class:`GenericTask`. The jobs are
-    created by another task.
-    """
-    fields = ['deadline', 'wcet']
-
-    def execute(self):
-        self._init()
-        yield passivate, self
-
-
-class PTask(GenericTask):
-    """
-    Periodic Task process. Inherits from :class:`GenericTask`. The jobs are
-    created periodically.
-    """
-    fields = ['activation_date', 'period', 'deadline', 'wcet']
-
-    # TODO: add simso.core.Model as parameter to the function to remove dependancy
-    def execute(self):
-        self._init()
-        # wait the activation date.
-        yield hold, self, int(self._task_info.activation_date *
-                              self._sim.cycles_per_ms)
-
-        while True:
-            #print self.sim.now(), "activate", self.name
-            self.create_job()
-            # TODO: add unittest to check for cycles_per_ms in simso.core.Model
-            yield hold, self, int(self.period * self._sim.cycles_per_ms)
-
-
-class SporadicTask(GenericTask):
-    """
-    Sporadic Task process. Inherits from :class:`GenericTask`. The jobs are
+    (Sporadic, SoftTask) process. Inherits from :class:`GenericTask`. The jobs are
     created using a list of activation dates.
     """
-    fields = ['list_activation_dates', 'deadline', 'wcet']
 
-    # TODO: add simso.core.Model as parameter to the function to remove dependancy
     def execute(self):
-
         self._init()
-        for ndate in self.list_activation_dates:
-            # TODO: add unittest to check for cycles_per_ms in simso.core.Model
+        for ndate in self.jobs_activation_dates:
             yield hold, self, int(ndate * self._sim.cycles_per_ms) \
-                - self._sim.now()
-            self.create_job()
+                  - self._sim.now()
+            self.create_job(ref_time=ndate)
+        # TODO: replace previous for loop by this next one
+        for ai in self.jobs_activation_dates:
+            self.create_job(ref_time=ai)
 
     @property
-    def list_activation_dates(self):
-        return self._task_info.list_activation_dates
-
-
-task_types = {
-    "Periodic": PTask,
-    "APeriodic": ATask,
-    "Sporadic": SporadicTask
-}
-
-task_types_names = task_types.keys()
-
-
-def Task(sim, task_info):
-    """
-    Task factory. Return and instantiate the correct class according to the
-    task_info.
-    """
-
-    return task_types[task_info.task_type](sim, task_info)
+    def jobs_activation_dates(self):
+        return self._task_info.jobs_activation_dates

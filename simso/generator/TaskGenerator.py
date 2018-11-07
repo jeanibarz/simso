@@ -455,11 +455,11 @@ def gen_kato_aperiodic_tasks_set(total_utilization: float, total_duration, perio
         list_activation_dates = gen_random_values(dist_type=DistTypeEnum.UNIFORM, n=ni, low=0,
                                                   high=total_duration - math.ceil(ci),
                                                   round_to_int=True)
-        task_info_list.append(TaskInfo(name="Task " + str(i), identifier=i, task_type="Sporadic",
+        task_info_list.append(TaskInfo(name="Task " + str(i), uid=i, task_type="Sporadic",
                                        abort_on_miss=False, period=None,
                                        activation_date=0, n_instr=0, mix=0,
                                        stack_file=('', ''), wcet=ci, acet=0, et_stddev=0,
-                                       deadline=di, base_cpi=0.0, followed_by=None,
+                                       firm_deadline=di, base_cpi=0.0, followed_by=None,
                                        list_activation_dates=list_activation_dates,
                                        preemption_cost=0, data=task_data))
 
