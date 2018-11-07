@@ -4,7 +4,6 @@ from xml.dom.minidom import parse
 import os.path
 from simso.core.Task import TaskInfo, task_types
 from simso.core.Processor import ProcInfo
-from simso.core.Caches import Cache_LRU
 from simso.core.Scheduler import SchedulerInfo
 
 

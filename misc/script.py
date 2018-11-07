@@ -31,8 +31,7 @@ def main(argv):
         configuration.add_processor(name="CPU 1", identifier=1)
 
         # Add a scheduler:
-        #configuration.scheduler_info.filename = "../simso/schedulers/RM.py"
-        configuration.scheduler_info.clas = "simso.schedulers.RM"
+        configuration.scheduler_info.clas = "simso.schedulers.EDF_mono"
 
     # Check the config before trying to run it.
     configuration.check_all()

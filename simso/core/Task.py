@@ -4,7 +4,6 @@ from collections import deque
 from SimPy.Simulation import Process, Monitor, hold, passivate
 from simso.core.Job import Job
 from simso.core.Timer import Timer
-from .CSDP import CSDP
 
 import os
 import os.path
