@@ -185,7 +185,7 @@ class JobR(object):
 
     @property
     def normalized_laxity(self):
-        return ((self.job.task.deadline - float(self.response_time)
+        return ((self.job.task.firm_deadline - float(self.response_time)
                  / self.job.sim.cycles_per_ms) / self.job.task.period)
 
     @property
@@ -292,7 +292,7 @@ class Results(object):
 
     def _generate_processors(self):
         self.processors = {}
-        for proc in self.model.processors:
+        for proc in self.model.processors_list:
             proc_r = ProcessorR()
             self.processors[proc] = proc_r
             last = self.observation_window[0]
@@ -315,7 +315,7 @@ class Results(object):
     def _compute_timers(self):
         self.total_timers = 0
         self.timers = {}
-        for proc in self.model.processors:
+        for proc in self.model.processors_list:
             self.timers[proc] = 0
             for t, evt in proc.timer_monitor:
                 if (t < self.observation_window[0] or
@@ -392,7 +392,7 @@ class Results(object):
         """
         Yield a tuple (proc, load, overhead) for each processor.
         """
-        for proc in self.model.processors:
+        for proc in self.model.processors_list:
             sum_run = 0
             sum_overhead = 0
             last_event = ProcEvent.IDLE

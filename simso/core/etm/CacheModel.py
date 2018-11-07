@@ -66,7 +66,7 @@ class CacheModel(AbstractExecutionTimeModel):
 
         # precompute cpi_alone for each task on each cpu
         for task in self.sim.task_list:
-            for proc in self.sim.processors:
+            for proc in self.sim.processors_list:
                 caches = proc.caches
                 task.set_cpi_alone(
                     proc,

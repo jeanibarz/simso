@@ -28,10 +28,10 @@ def main(argv):
                                base_exec_cost=5, firm_deadline=20)
 
         # Add a processor:
-        configuration.add_processor(name="CPU 1", identifier=1)
+        configuration.add_processor(name="CPU 1", uid=1)
 
         # Add a scheduler:
-        configuration.scheduler_info.clas = "simso.schedulers.EDF_mono"
+        configuration.scheduler_info.cls = "simso.schedulers.EDF_mono"
 
     # Check the config before trying to run it.
     configuration.check_all()

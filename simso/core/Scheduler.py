@@ -18,47 +18,31 @@ class SchedulerInfo(object):
     SchedulerInfo groups the data that characterize a Scheduler (such as the
     scheduling overhead) and do the dynamic loading of the scheduler.
     """
-    def __init__(self, clas='', overhead=0, overhead_activate=0,
-                 overhead_terminate=0, fields=None):
+
+    def __init__(self, cls=''):
         """
         Args:
             - `name`: Name of the scheduler.
             - `cls`: Class associated to this scheduler.
-            - `overhead`: Overhead associated to a scheduling decision.
 
         Methods:
         """
         self.filename = ''
-        self.clas = clas
-        self.overhead = overhead
-        self.overhead_activate = overhead_activate
-        self.overhead_terminate = overhead_terminate
-        self.data = {}
-        self.fields_types = {}
-
-        if fields:
-            for key, value in fields.items():
-                self.data[key] = value[0]
-                self.fields_types[key] = value[1]
-
-    def set_fields(self, fields):
-        for key, value in fields.items():
-            self.data[key] = value[0]
-            self.fields_types[key] = value[1]
+        self.cls = cls
 
     def get_cls(self):
         """
         Get the class of this scheduler.
         """
         try:
-            clas = None
-            if self.clas:
-                if type(self.clas) is type:
-                    clas = self.clas
+            cls = None
+            if self.cls:
+                if type(self.cls) is type:
+                    cls = self.cls
                 else:
-                    name = self.clas.rsplit('.', 1)[1]
-                    importlib.import_module(self.clas)
-                    clas = getattr(importlib.import_module(self.clas), name)
+                    name = self.cls.rsplit('.', 1)[1]
+                    importlib.import_module(self.cls)
+                    cls = getattr(importlib.import_module(self.cls), name)
             elif self.filename:
                 path, name = os.path.split(self.filename)
                 name = os.path.splitext(name)[0]
@@ -66,15 +50,15 @@ class SchedulerInfo(object):
                 fp, pathname, description = imp.find_module(name, [path])
                 if path not in sys.path:
                     sys.path.append(path)
-                clas = getattr(imp.load_module(name, fp, pathname,
-                                               description), name)
+                cls = getattr(imp.load_module(name, fp, pathname,
+                                              description), name)
                 fp.close()
 
-            return clas
+            return cls
         except Exception as e:
             print("ImportError: ", e)
-            if self.clas:
-                print("Class: {}".format(self.clas))
+            if self.cls:
+                print("Class: {}".format(self.cls))
             else:
                 print("Path: {}".format(self.filename))
             return None
@@ -87,9 +71,9 @@ class SchedulerInfo(object):
             - `model`: The :class:`Model <simso.core.Model.Model>` object \
             that is passed to the constructor.
         """
-        clas = self.get_cls()
-        if clas:
-            return clas(model, self)
+        cls = self.get_cls()
+        if cls:
+            return cls(model, self)
 
 
 class Scheduler(object):
@@ -117,7 +101,7 @@ class Scheduler(object):
     overriding the :meth:`get_lock` and :meth:`release_lock` methods.
     """
 
-    def __init__(self, sim, scheduler_info, **kwargs):
+    def __init__(self, sim, scheduler_info: SchedulerInfo):
         """
         Args:
 
@@ -130,21 +114,11 @@ class Scheduler(object):
         - **sim**: :class:`Model <simso.core.Model.Model>` instance. \
             Useful to get current time with ``sim.now_ms()`` (in ms) or \
             ``sim.now()`` (in cycles).
-        - **processors**: List of :class:`processors \
-            <simso.core.Processor.Processor>` handled by this scheduler.
-        - **task_list**: List of :class:`tasks <simso.core.Task.GenericTask>` \
-            handled by this scheduler.
-
         Methods:
         """
         self.sim = sim
-        self.processors = []
-        self.task_list = []
+        self._scheduler_info = scheduler_info
         self._lock = False
-        self.overhead = scheduler_info.overhead
-        self.overhead_activate = scheduler_info.overhead_activate
-        self.overhead_terminate = scheduler_info.overhead_terminate
-        self.data = scheduler_info.data
         self.monitor = Monitor(name="MonitorScheduler", sim=sim)
 
     def init(self):

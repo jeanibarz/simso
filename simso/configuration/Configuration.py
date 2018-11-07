@@ -49,29 +49,19 @@ class Configuration(object):
             self.etm = parser.etm
             self.duration = parser.duration
             self.cycles_per_ms = parser.cycles_per_ms
-            self._caches_list = parser.caches_list
-            self.memory_access_time = parser.memory_access_time
             self._task_info_list = parser.task_info_list
             self.task_data_fields = parser.task_data_fields
             self._proc_info_list = parser.proc_info_list
             self.proc_data_fields = parser.proc_data_fields
             self._scheduler_info = parser.scheduler_info
-            self.penalty_preemption = parser.penalty_preemption
-            self.penalty_migration = parser.penalty_migration
         else:
             self.etm = "wcet"
-            self.duration = 100000000
-            self.penalty_preemption = 0
-            self.penalty_migration = 0
-            self.cycles_per_ms = 1000000
-            self._caches_list = []
+            self.duration = 1000
+            self.cycles_per_ms = 1
             self._task_info_list = []
             self.task_data_fields = {}
             self._proc_info_list = []
-            self.proc_data_fields = {}
-            self.memory_access_time = 100
             self._scheduler_info = SchedulerInfo()
-        self.calc_penalty_cache()
         self._set_filename(filename)
 
     def _set_filename(self, filename):
@@ -120,15 +110,12 @@ class Configuration(object):
         self.check_scheduler()
         self.check_processors()
         self.check_tasks()
-        self.check_caches()
 
     def check_general(self):
         assert self.duration >= 0, \
             "Simulation duration must be a positive number."
         assert self.cycles_per_ms >= 0, \
             "Cycles / ms must be a positive number."
-        assert self.memory_access_time >= 0, \
-            "The memory access time must be a positive number."
 
     def check_scheduler(self):
         cls = self._scheduler_info.get_cls()
@@ -136,23 +123,11 @@ class Configuration(object):
             "A scheduler is needed."
         assert issubclass(cls, Scheduler), \
             "Must inherits from Scheduler."
-        assert self._scheduler_info.overhead >= 0, \
-            "An overhead must not be negative."
 
     def check_processors(self):
         # At least one processor:
         assert len(self._proc_info_list) > 0, \
             "At least one processor is needed."
-
-        # Caches inclusifs :
-        succ = {}
-        for proc in self._proc_info_list:
-            cur = None
-            for cache in reversed(proc.caches):
-                assert not (cache in succ and succ[cache] != cur), \
-                    "Caches must be inclusives."
-                succ[cache] = cur
-                cur = cache
 
         for index, proc in enumerate(self._proc_info_list):
             # Nom correct :
@@ -160,15 +135,9 @@ class Configuration(object):
                 "A processor name must begins with a letter and must not " \
                 "contains any special character."
             # Id unique :
-            assert proc.identifier not in [
-                x.identifier for x in self._proc_info_list[index + 1:]], \
+            assert proc.uid not in [
+                x.uid for x in self._proc_info_list[index + 1:]], \
                 "Processors' identifiers must be uniques."
-
-            # Overheads positifs :
-            assert proc.cs_overhead >= 0, \
-                "Context Save overhead can't be negative."
-            assert proc.cl_overhead >= 0, \
-                "Context Load overhead can't be negative."
 
     def check_tasks(self):
         assert len(self._task_info_list) > 0, "At least one task is needed."
@@ -179,8 +148,8 @@ class Configuration(object):
                 "Tasks' identifiers must be uniques."
             # Nom correct :
             assert re.match('^[a-zA-Z][a-zA-Z0-9 _-]*$', task_info.name), "A task " \
-                                                                     "name must begins with a letter and must not contains any " \
-                                                                     "special character."
+                                                                          "name must begins with a letter and must not contains any " \
+                                                                          "special character."
 
             #  Activation date >= 0:
             assert task_info.activation_date >= 0, \
@@ -191,25 +160,6 @@ class Configuration(object):
 
             #  Deadline >= 0:
             assert task_info.firm_deadline >= 0, "Tasks' deadlines must be positives."
-
-
-    def check_caches(self):
-        for index, cache in enumerate(self._caches_list):
-            # Id unique :
-            assert cache.identifier not in [
-                x.identifier for x in self._caches_list[index + 1:]], \
-                "Caches' identifiers must be uniques."
-
-            # Nom correct :
-            assert re.match('^[a-zA-Z][a-zA-Z0-9_-]*$', cache.name), \
-                "A cache name must begins with a letter and must not " \
-                "contains any spacial character nor space."
-
-            # Taille positive :
-            assert cache.size >= 0, "A cache size must be positive."
-
-            #  Access time >= 0:
-            assert cache.access_time >= 0, "An access time must be positive."
 
     def get_hyperperiod(self):
         """
@@ -259,21 +209,18 @@ class Configuration(object):
         """
         Helper method to create a TaskInfo and add it to the list of tasks.
         """
-        task_info = TaskInfo(name=name, uid=uid, activation_date=activation_date, jobs_activation_dates=jobs_activation_dates,
-                        base_utility_value=base_utility_value, base_exec_cost=base_exec_cost,
-                        firm_deadline=firm_deadline, soft_deadline=soft_deadline, abort_condition=abort_condition)
+        task_info = TaskInfo(name=name, uid=uid, activation_date=activation_date,
+                             jobs_activation_dates=jobs_activation_dates,
+                             base_utility_value=base_utility_value, base_exec_cost=base_exec_cost,
+                             firm_deadline=firm_deadline, soft_deadline=soft_deadline, abort_condition=abort_condition)
         self.task_info_list.append(task_info)
         return task_info
 
-
-    def add_processor(self, name, identifier, cs_overhead=0,
-                      cl_overhead=0, migration_overhead=0, speed=1.0):
+    def add_processor(self, name, uid, exec_speed=1.0):
         """
         Helper method to create a ProcInfo and add it to the list of
         processors.
         """
-        proc = ProcInfo(
-            identifier, name, cs_overhead, cl_overhead, migration_overhead,
-            speed)
+        proc = ProcInfo(name=name, uid=uid, exec_speed=exec_speed)
         self.proc_info_list.append(proc)
         return proc

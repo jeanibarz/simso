@@ -15,19 +15,10 @@ SPEED = 6
 
 
 class ProcInfo(object):
-    def __init__(self, identifier, name, cs_overhead=0, cl_overhead=0,
-                 migration_overhead=0, speed=1.0, data=None):
-        self.identifier = identifier
+    def __init__(self, uid, name, exec_speed=1.0):
+        self.uid = uid
         self.name = name
-        self.penalty = 0
-        self.caches = []
-        self.cs_overhead = cs_overhead
-        self.cl_overhead = cl_overhead
-        self.migration_overhead = migration_overhead
-        if data is None:
-            data = {}
-        self.data = data
-        self.speed = speed
+        self.exec_speed = exec_speed
 
     def add_cache(self, cache):
         self.caches.append(cache)
@@ -46,32 +37,30 @@ class Processor(Process):
     <simso.core.Scheduler.Scheduler.on_terminated>` or in a :class:`timer
     <simso.core.Timer.Timer>` handler.
     """
-    _identifier = 0
+    next_uid = 0
+
+    @classmethod
+    def get_new_uid(cls):
+        uid = cls.next_uid
+        cls.next_uid += 1
+        return uid
 
     @classmethod
     def init(cls):
-        cls._identifier = 0
+        cls.next_uid = 0
 
     def __init__(self, model, proc_info):
         Process.__init__(self, name=proc_info.name, sim=model)
+        self._proc_info = proc_info
         self._model = model
-        self._internal_id = Processor._identifier
-        Processor._identifier += 1
-        self.identifier = proc_info.identifier
+        self._uid = Processor.get_new_uid()
         self._running = None
         self.was_running = None
         self._evts = deque([])
         self.sched = model.scheduler
         self.monitor = Monitor(name="Monitor" + proc_info.name, sim=model)
-        self._caches = []
-        self._penalty = proc_info.penalty
-        self._cs_overhead = proc_info.cs_overhead
-        self._cl_overhead = proc_info.cl_overhead
-        self._migration_overhead = proc_info.migration_overhead
-        self.set_caches(proc_info.caches)
         self.timer_monitor = Monitor(name="Monitor Timer" + proc_info.name,
                                      sim=model)
-        self._speed = proc_info.speed
 
     def resched(self):
         """
@@ -100,7 +89,7 @@ class Processor(Process):
 
     @property
     def speed(self):
-        return self._speed
+        return self._proc_info.exec_speed
 
     def is_running(self):
         """
@@ -133,7 +122,7 @@ class Processor(Process):
     @property
     def internal_id(self):
         """A unique, internal, id."""
-        return self._internal_id
+        return self._uid
 
     @property
     def running(self):
@@ -168,15 +157,9 @@ class Processor(Process):
             if evt[0] == ACTIVATE:
                 self.sched.on_activate(evt[1])
                 self.monitor.observe(ProcOverheadEvent("JobActivation"))
-                self.sched.monitor_begin_activate(self)
-                yield hold, self, self.sched.overhead_activate
-                self.sched.monitor_end_activate(self)
             elif evt[0] == TERMINATE:
                 self.sched.on_terminated(evt[1])
                 self.monitor.observe(ProcOverheadEvent("JobTermination"))
-                self.sched.monitor_begin_terminate(self)
-                yield hold, self, self.sched.overhead_terminate
-                self.sched.monitor_end_terminate(self)
             elif evt[0] == TIMER:
                 self.timer_monitor.observe(None)
                 if evt[1].overhead > 0:
@@ -184,13 +167,12 @@ class Processor(Process):
                     yield hold, self, evt[1].overhead
                 evt[1].call_handler()
             elif evt[0] == SPEED:
-                self._speed = evt[1]
+                self._exec_speed = evt[1]
             elif evt[0] == RESCHED:
                 self.monitor.observe(ProcOverheadEvent("Scheduling"))
                 self.sched.monitor_begin_schedule(self)
                 yield waituntil, self, self.sched.get_lock
                 decisions = self.sched.schedule(self)
-                yield hold, self, self.sched.overhead  # overhead scheduling
                 if type(decisions) is not list:
                     decisions = [decisions]
                 decisions = [d for d in decisions if d is not None]
@@ -213,13 +195,10 @@ class Processor(Process):
                     # Send that job to processor cpu.
                     cpu.preempt(job)
 
-                    if job:
-                        job.task.cpu = cpu
-
                 # Forbid to run a job simultaneously on 2 or more processors.
                 running_tasks = [
                     cpu.running.name
-                    for cpu in self._model.processors if cpu.running]
+                    for cpu in self._model.processors_list if cpu.running]
                 assert len(set(running_tasks)) == len(running_tasks), \
                     "Try to run a job on 2 processors simultaneously!"
 

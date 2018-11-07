@@ -35,12 +35,11 @@ class Job(Process):
         self._end_date = None
         self._is_preempted = False
         self._activation_date = self.sim.now_ms()
-        self._absolute_deadline = self.sim.now_ms() + task.deadline
+        self._absolute_deadline = self.sim.now_ms() + task.firm_deadline
         self._aborted = False
         self._sim = sim # should be removed ?
         self._monitor = monitor
         self._etm = etm # should be removed ?
-        self._was_running_on = task.cpu
         self._on_activate()
 
 
@@ -166,7 +165,7 @@ class Job(Process):
         """
         Remaining execution time in ms.
         """
-        return self.wcet - self.actual_computation_time
+        return self.base_exec_cost - self.actual_computation_time
 
     @property
     def laxity(self):
@@ -266,16 +265,16 @@ class Job(Process):
         Relative deadline in milliseconds.
         Equivalent to ``self.task.deadline``.
         """
-        return self._task.deadline
+        return self._task.firm_deadline
 
     @property
     def pred(self):
         return self._pred
 
-    def activate_job(self):
+    def activate_job(self, cpu):
         self._start_date = self.sim.now()
         # Notify the OS.
-        self._task.cpu.activate(self)
+        cpu.activate(self)
 
         # While the job's execution is not finished.
         while self._end_date is None:

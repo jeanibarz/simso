@@ -38,29 +38,22 @@ class Model(Simulation):
                 self, len(proc_info_list)
             )
         except KeyError:
-            print("Unknowned Execution Time Model.", configuration.etm)
-
-        self._tasks_list = []
-        for task_info in task_info_list:
-            self._tasks_list.append(SporadicTask(self, task_info))
+            print("Unknown Execution Time Model.", configuration.etm)
+        except Exception as e:
+            raise e
 
         # Init the processor class. This will in particular reinit the
         # identifiers to 0.
         Processor.init()
 
-        # Initialization of the caches
-        for cache in configuration.caches_list:
-            cache.init()
-
         self._processors_list = []
         for proc_info in proc_info_list:
             proc = Processor(self, proc_info)
-            proc.caches = proc_info.caches
             self._processors_list.append(proc)
 
-        # XXX: too specific.
-        self.penalty_preemption = configuration.penalty_preemption
-        self.penalty_migration = configuration.penalty_migration
+        self._tasks_list = []
+        for task_info in task_info_list:
+            self._tasks_list.append(SporadicTask(self, task_info))
 
         self._etm.init()
 
@@ -70,7 +63,7 @@ class Model(Simulation):
                               in_ms=False)
         self._callback = callback
         self.scheduler.task_list = self._tasks_list
-        self.scheduler.processors = self._processors_list
+        self.scheduler.processors_list = self._processors_list
         self.results = None
 
     def now_ms(self):
@@ -103,7 +96,7 @@ class Model(Simulation):
         return self._etm
 
     @property
-    def processors(self):
+    def processors_list(self):
         """
         List of all the processors.
         """
@@ -137,7 +130,7 @@ class Model(Simulation):
             self.activate(cpu, cpu.run())
 
         for task in self._tasks_list:
-            self.activate(task, task.execute()) # TODO: pass self to task.execute()
+            self.activate(task, task.execute(cpu=self._processors_list[0]))  # TODO: pass self to task.execute()
 
         try:
             self.simulate(until=self._duration)

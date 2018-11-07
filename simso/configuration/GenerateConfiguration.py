@@ -61,7 +61,7 @@ def generate_cache(top, caches_list, memory_access_time):
                         {'memory_access_time': str(memory_access_time)})
     for cache in caches_list:
         SubElement(caches, 'cache', {'name': cache.name,
-                                     'id': str(cache.identifier),
+                                     'id': str(cache.uid),
                                      'policy': "LRU",  # TODO
                                      'type': "data",  # TODO
                                      'size': str(cache.size),
@@ -80,13 +80,13 @@ def generate_processors(top, proc_info_list, fields):
         attrs = dict((k, str(proc.data[k])) for k in proc.data.keys())
         attrs.update({
             'name': proc.name,
-            'id': str(proc.identifier),
+            'id': str(proc.uid),
             'cl_overhead': str(proc.cl_overhead),
             'cs_overhead': str(proc.cs_overhead),
             'speed': str(proc.speed)})
         processor = SubElement(processors, 'processor', attrs)
         for cache in proc.caches:
-            SubElement(processor, 'cache', {'ref': str(cache.identifier)})
+            SubElement(processor, 'cache', {'ref': str(cache.uid)})
 
 
 def generate_tasks(top, task_info_list, fields):
@@ -99,14 +99,14 @@ def generate_tasks(top, task_info_list, fields):
     for task in task_info_list:
         attrs = dict((k, str(task.data[k])) for k in task.data.keys())
         attrs.update({'name': task.name,
-                      'id': str(task.identifier),
+                      'id': str(task.uid),
                       'task_type': task.task_type,
                       'abort_on_miss': 'yes' if task.abort_on_miss else 'no',
                       'period': str(task.period),
                       'activationDate': str(task.activation_date),
                       'list_activation_dates': ', '.join(
                           map(str, task.list_activation_dates)),
-                      'deadline': str(task.deadline),
+                      'deadline': str(task.firm_deadline),
                       'base_cpi': str(task.base_cpi),
                       'instructions': str(task.n_instr),
                       'mix': str(task.mix),

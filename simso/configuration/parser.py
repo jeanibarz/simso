@@ -149,18 +149,18 @@ class Parser(object):
                 speed = float(attr['speed'].value)
 
             proc = ProcInfo(name=attr['name'].value,
-                            identifier=int(attr['id'].value),
+                            uid=int(attr['id'].value),
                             cs_overhead=cs_overhead,
                             cl_overhead=cl_overhead,
                             migration_overhead=migration_overhead,
-                            speed=speed,
+                            exec_speed=speed,
                             data=data)
 
             caches = cpu.getElementsByTagName('cache')
             for cache_element in caches:
                 attr = cache_element.attributes
                 for cache in self.caches_list:
-                    if cache.identifier == int(attr['ref'].value):
+                    if cache.uid == int(attr['ref'].value):
                         proc.add_cache(cache)
 
             self.proc_info_list.append(proc)
@@ -240,7 +240,7 @@ class Parser(object):
             data[name] = (convert_function[type_](value), type_)
 
         self.scheduler_info = SchedulerInfo(
-            clas=clas, overhead=overhead, overhead_activate=overhead_activate,
+            cls=clas, overhead=overhead, overhead_activate=overhead_activate,
             overhead_terminate=overhead_terminate, fields=data)
         if filename and filename[0] != '/':
                 filename = self.cur_dir + '/' + filename
