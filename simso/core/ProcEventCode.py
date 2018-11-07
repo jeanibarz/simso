@@ -1,7 +1,7 @@
 # coding=utf-8
 
 
-class ProcEvent(object):
+class ProcEventCode(object):
     RUN = 1
     IDLE = 2
     OVERHEAD = 3
@@ -11,28 +11,28 @@ class ProcEvent(object):
         self.args = args
 
 
-class ProcRunEvent(ProcEvent):
+class ProcRunEventCode(ProcEventCode):
     def __init__(self, job):
-        ProcEvent.__init__(self, ProcEvent.RUN, job)
+        ProcEventCode.__init__(self, ProcEventCode.RUN, job)
 
 
-class ProcIdleEvent(ProcEvent):
+class ProcIdleEventCode(ProcEventCode):
     def __init__(self):
-        ProcEvent.__init__(self, ProcEvent.IDLE)
+        ProcEventCode.__init__(self, ProcEventCode.IDLE)
 
 
-class ProcOverheadEvent(ProcEvent):
+class ProcOverheadEventCode(ProcEventCode):
     def __init__(self, type_overhead):
-        ProcEvent.__init__(self, ProcEvent.OVERHEAD, type_overhead)
+        ProcEventCode.__init__(self, ProcEventCode.OVERHEAD, type_overhead)
 
 
-class ProcCxtSaveEvent(ProcOverheadEvent):
+class ProcCxtSaveEvent(ProcOverheadEventCode):
     def __init__(self, terminated=False):
-        ProcOverheadEvent.__init__(self, "CS")
+        ProcOverheadEventCode.__init__(self, "CS")
         self.terminated = terminated
 
 
-class ProcCxtLoadEvent(ProcOverheadEvent):
+class ProcCxtLoadEvent(ProcOverheadEventCode):
     def __init__(self, terminated=False):
-        ProcOverheadEvent.__init__(self, "CL")
+        ProcOverheadEventCode.__init__(self, "CL")
         self.terminated = terminated

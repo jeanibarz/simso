@@ -96,6 +96,10 @@ class SoftTask(Process):
         return self._task_info.soft_deadline
 
     @property
+    def base_exec_cost(self):
+        return self._task_info.base_exec_cost
+
+    @property
     def uid(self):
         """
         Identifier of the task.

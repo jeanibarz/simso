@@ -17,14 +17,14 @@ def main(argv):
         # Manual configuration:
         configuration = Configuration()
 
-        configuration.duration = 420 * configuration.cycles_per_ms
+        configuration.duration = 30
 
         # Add tasks:
-        configuration.add_task(name="T1", uid=1, activation_date=0, jobs_activation_dates=[x * 7 for x in range(500)],
+        configuration.add_task(name="T1", uid=1, activation_date=0, jobs_activation_dates=[x * 7 for x in range(4)],
                                base_exec_cost=3, firm_deadline=7)
-        configuration.add_task(name="T2", uid=2, activation_date=0, jobs_activation_dates=[x * 12 for x in range(500)],
+        configuration.add_task(name="T2", uid=2, activation_date=0, jobs_activation_dates=[x * 12 for x in range(2)],
                                base_exec_cost=3, firm_deadline=12)
-        configuration.add_task(name="T3", uid=3, activation_date=0, jobs_activation_dates=[x * 20 for x in range(500)],
+        configuration.add_task(name="T3", uid=3, activation_date=0, jobs_activation_dates=[20],
                                base_exec_cost=5, firm_deadline=20)
 
         # Add a processor:

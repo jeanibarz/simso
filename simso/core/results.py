@@ -1,6 +1,6 @@
-from simso.core.ProcEvent import ProcEvent
-from simso.core.JobEvent import JobEvent
-from simso.core.SchedulerEvent import SchedulerEvent
+from simso.core.ProcEventCode import ProcEventCode
+from simso.core.JobEventCode import JobEventCode
+from simso.core.SchedulerEventCode import SchedulerEventCode
 
 
 class ProcessorR(object):
@@ -254,18 +254,18 @@ class Results(object):
                 # The events that start before the observation window should
                 # maybe be stored...
                 continue
-            if evt[1].event == JobEvent.ACTIVATE:
+            if evt[1].event == JobEventCode.ACTIVATE:
                 self.tasks[task].add_job(evt[0], evt[1].job)
-            elif evt[1].event == JobEvent.TERMINATED:
+            elif evt[1].event == JobEventCode.TERMINATED:
                 self.tasks[task].terminate_job(evt[0])
-            elif evt[1].event == JobEvent.ABORTED:
+            elif evt[1].event == JobEventCode.ABORTED:
                 self.tasks[task].abort_job(evt[0])
-            elif evt[1].event == JobEvent.EXECUTE:
+            elif evt[1].event == JobEventCode.EXECUTE:
                 self.tasks[task].execute(evt[0], evt[1].cpu)
                 for rt in self.tasks.values():
                     if rt.preempt_date and evt[1].cpu == rt.cpu:
                         rt.other_executed = True
-            elif evt[1].event == JobEvent.PREEMPTED:
+            elif evt[1].event == JobEventCode.PREEMPTED:
                 self.tasks[task].preempt(evt[0])
 
     def _generate_scheduler(self):
@@ -276,17 +276,17 @@ class Results(object):
                     t > self.observation_window[1]):
                 continue
 
-            if evt.event == SchedulerEvent.BEGIN_SCHEDULE:
+            if evt.event == SchedulerEventCode.BEGIN_SCHEDULE:
                 self.scheduler.schedule_count += 1
-            elif evt.event == SchedulerEvent.END_SCHEDULE:
+            elif evt.event == SchedulerEventCode.END_SCHEDULE:
                 self.scheduler.schedule_overhead += t - last
-            elif evt.event == SchedulerEvent.BEGIN_ACTIVATE:
+            elif evt.event == SchedulerEventCode.BEGIN_ACTIVATE:
                 self.scheduler.activate_count += 1
-            elif evt.event == SchedulerEvent.END_ACTIVATE:
+            elif evt.event == SchedulerEventCode.END_ACTIVATE:
                 self.scheduler.activate_overhead += t - last
-            elif evt.event == SchedulerEvent.BEGIN_TERMINATE:
+            elif evt.event == SchedulerEventCode.BEGIN_TERMINATE:
                 self.scheduler.terminate_count += 1
-            elif evt.event == SchedulerEvent.END_TERMINATE:
+            elif evt.event == SchedulerEventCode.END_TERMINATE:
                 self.scheduler.terminate_overhead += t - last
             last = t
 
@@ -300,12 +300,12 @@ class Results(object):
                 if (t < self.observation_window[0] or
                         t > self.observation_window[1]):
                     continue
-                if evt.event == ProcEvent.OVERHEAD and evt.args == "CS":
+                if evt.event == ProcEventCode.OVERHEAD and evt.args == "CS":
                     if evt.terminated:
                         proc_r.context_save_overhead += t - last
                     else:
                         proc_r.context_save_count += 1
-                if evt.event == ProcEvent.OVERHEAD and evt.args == "CL":
+                if evt.event == ProcEventCode.OVERHEAD and evt.args == "CL":
                     if evt.terminated:
                         proc_r.context_load_overhead += t - last
                     else:
@@ -395,7 +395,7 @@ class Results(object):
         for proc in self.model.processors_list:
             sum_run = 0
             sum_overhead = 0
-            last_event = ProcEvent.IDLE
+            last_event = ProcEventCode.IDLE
             x1 = self.observation_window[0]
             for evt in proc.monitor:
                 current_date = evt[0]
@@ -405,17 +405,17 @@ class Results(object):
                 if current_date >= self.observation_window[1]:
                     break
 
-                if last_event == ProcEvent.RUN:
+                if last_event == ProcEventCode.RUN:
                     sum_run += current_date - x1
-                elif last_event == ProcEvent.OVERHEAD:
+                elif last_event == ProcEventCode.OVERHEAD:
                     sum_overhead += current_date - x1
 
                 x1 = current_date
                 last_event = evt[1].event
 
-            if last_event == ProcEvent.RUN:
+            if last_event == ProcEventCode.RUN:
                 sum_run += self.observation_window[1] - x1
-            elif last_event == ProcEvent.OVERHEAD:
+            elif last_event == ProcEventCode.OVERHEAD:
                 sum_overhead += self.observation_window[1] - x1
 
             yield (proc,

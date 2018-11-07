@@ -1,7 +1,7 @@
 # coding=utf-8
 
 
-class JobEvent:
+class JobEventCode:
     ACTIVATE = 1
     EXECUTE = 2
     PREEMPTED = 3
@@ -14,5 +14,5 @@ class JobEvent:
         self.event = event
         self.job = job
         self.cpu = cpu
-        JobEvent.count += 1
-        self.id_ = JobEvent.count
+        JobEventCode.count += 1
+        self.id_ = JobEventCode.count

@@ -1,7 +1,7 @@
 # coding=utf-8
 
 
-class SchedulerEvent(object):
+class SchedulerEventCode(object):
     BEGIN_SCHEDULE = 1
     END_SCHEDULE = 2
     BEGIN_ACTIVATE = 3
@@ -14,37 +14,37 @@ class SchedulerEvent(object):
         self.cpu = cpu
 
 
-class SchedulerBeginScheduleEvent(SchedulerEvent):
+class SchedulerBeginScheduleEventCode(SchedulerEventCode):
     def __init__(self, cpu):
-        SchedulerEvent.__init__(self, cpu)
-        self.event = SchedulerEvent.BEGIN_SCHEDULE
+        SchedulerEventCode.__init__(self, cpu)
+        self.event = SchedulerEventCode.BEGIN_SCHEDULE
 
 
-class SchedulerEndScheduleEvent(SchedulerEvent):
+class SchedulerEndScheduleEventCode(SchedulerEventCode):
     def __init__(self, cpu):
-        SchedulerEvent.__init__(self, cpu)
-        self.event = SchedulerEvent.END_SCHEDULE
+        SchedulerEventCode.__init__(self, cpu)
+        self.event = SchedulerEventCode.END_SCHEDULE
 
 
-class SchedulerBeginActivateEvent(SchedulerEvent):
+class SchedulerBeginActivateEventCode(SchedulerEventCode):
     def __init__(self, cpu):
-        SchedulerEvent.__init__(self, cpu)
-        self.event = SchedulerEvent.BEGIN_ACTIVATE
+        SchedulerEventCode.__init__(self, cpu)
+        self.event = SchedulerEventCode.BEGIN_ACTIVATE
 
 
-class SchedulerEndActivateEvent(SchedulerEvent):
+class SchedulerEndActivateEventCode(SchedulerEventCode):
     def __init__(self, cpu):
-        SchedulerEvent.__init__(self, cpu)
-        self.event = SchedulerEvent.END_ACTIVATE
+        SchedulerEventCode.__init__(self, cpu)
+        self.event = SchedulerEventCode.END_ACTIVATE
 
 
-class SchedulerBeginTerminateEvent(SchedulerEvent):
+class SchedulerBeginTerminateEventCode(SchedulerEventCode):
     def __init__(self, cpu):
-        SchedulerEvent.__init__(self, cpu)
-        self.event = SchedulerEvent.BEGIN_TERMINATE
+        SchedulerEventCode.__init__(self, cpu)
+        self.event = SchedulerEventCode.BEGIN_TERMINATE
 
 
-class SchedulerEndTerminateEvent(SchedulerEvent):
+class SchedulerEndTerminateEventCode(SchedulerEventCode):
     def __init__(self, cpu):
-        SchedulerEvent.__init__(self, cpu)
-        self.event = SchedulerEvent.END_TERMINATE
+        SchedulerEventCode.__init__(self, cpu)
+        self.event = SchedulerEventCode.END_TERMINATE

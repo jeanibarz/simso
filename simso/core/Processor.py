@@ -2,8 +2,8 @@
 
 from collections import deque
 from SimPy.Simulation import Process, Monitor, hold, waituntil
-from simso.core.ProcEvent import ProcRunEvent, ProcIdleEvent, \
-    ProcOverheadEvent, ProcCxtSaveEvent, ProcCxtLoadEvent
+from simso.core.ProcEventCode import ProcRunEventCode, ProcIdleEventCode, \
+    ProcOverheadEventCode, ProcCxtSaveEvent, ProcCxtLoadEvent
 
 
 RESCHED = 1
@@ -139,9 +139,9 @@ class Processor(Process):
                 if job:
                     job.interruptReset()
                     self.sim.reactivate(job)
-                    self.monitor.observe(ProcRunEvent(job))
+                    self.monitor.observe(ProcRunEventCode(job))
                 else:
-                    self.monitor.observe(ProcIdleEvent())
+                    self.monitor.observe(ProcIdleEventCode())
 
                 # Wait event.
                 yield waituntil, self, lambda: self._evts
@@ -156,10 +156,10 @@ class Processor(Process):
 
             if evt[0] == ACTIVATE:
                 self.sched.on_activate(evt[1])
-                self.monitor.observe(ProcOverheadEvent("JobActivation"))
+                self.monitor.observe(ProcOverheadEventCode("JobActivation"))
             elif evt[0] == TERMINATE:
                 self.sched.on_terminated(evt[1])
-                self.monitor.observe(ProcOverheadEvent("JobTermination"))
+                self.monitor.observe(ProcOverheadEventCode("JobTermination"))
             elif evt[0] == TIMER:
                 self.timer_monitor.observe(None)
                 if evt[1].overhead > 0:
@@ -169,7 +169,7 @@ class Processor(Process):
             elif evt[0] == SPEED:
                 self._exec_speed = evt[1]
             elif evt[0] == RESCHED:
-                self.monitor.observe(ProcOverheadEvent("Scheduling"))
+                self.monitor.observe(ProcOverheadEventCode("Scheduling"))
                 self.sched.monitor_begin_schedule(self)
                 yield waituntil, self, self.sched.get_lock
                 decisions = self.sched.schedule(self)

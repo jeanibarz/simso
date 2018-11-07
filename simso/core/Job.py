@@ -1,7 +1,7 @@
 # coding=utf-8
 
 from SimPy.Simulation import Process, hold, passivate
-from simso.core.JobEvent import JobEvent
+from simso.core.JobEventCode import JobEventCode
 from math import ceil
 
 
@@ -50,7 +50,7 @@ class Job(Process):
         return self._end_date is None
 
     def _on_activate(self):
-        self._monitor.observe(JobEvent(self, JobEvent.ACTIVATE))
+        self._monitor.observe(JobEventCode(self, JobEventCode.ACTIVATE))
         self._sim.logger.log(self.name + " Activated.", kernel=True)
         self._etm.on_activate(self)
 
@@ -63,7 +63,7 @@ class Job(Process):
 
         self.cpu.was_running = self
 
-        self._monitor.observe(JobEvent(self, JobEvent.EXECUTE, self.cpu))
+        self._monitor.observe(JobEventCode(self, JobEventCode.EXECUTE, self.cpu))
         self._sim.logger.log("{} Executing on {}".format(
             self.name, self._task.cpu.name), kernel=True)
 
@@ -78,7 +78,7 @@ class Job(Process):
         self._is_preempted = True
         self._was_running_on = self.cpu
 
-        self._monitor.observe(JobEvent(self, JobEvent.PREEMPTED))
+        self._monitor.observe(JobEventCode(self, JobEventCode.PREEMPTED))
         self._sim.logger.log(self.name + " Preempted! ret: " +
                              str(self.interruptLeft), kernel=True)
 
@@ -87,7 +87,7 @@ class Job(Process):
         self._etm.on_terminated(self)
 
         self._end_date = self.sim.now()
-        self._monitor.observe(JobEvent(self, JobEvent.TERMINATED))
+        self._monitor.observe(JobEventCode(self, JobEventCode.TERMINATED))
         self._task.end_job(self)
         self._task.cpu.terminate(self)
         self._sim.logger.log(self.name + " Terminated.", kernel=True)
@@ -97,7 +97,7 @@ class Job(Process):
         self._etm.on_abort(self)
         self._end_date = self.sim.now()
         self._aborted = True
-        self._monitor.observe(JobEvent(self, JobEvent.ABORTED))
+        self._monitor.observe(JobEventCode(self, JobEventCode.ABORTED))
         self._task.end_job(self)
         self._task.cpu.terminate(self)
         self._sim.logger.log("Job " + str(self.name) + " aborted! ret:" + str(self.ret))
@@ -252,7 +252,7 @@ class Job(Process):
 
     @property
     def base_exec_cost(self):
-        return self._task._task_info.base_exec_cost
+        return self._task.base_exec_cost
 
     @property
     def period(self):
@@ -266,10 +266,6 @@ class Job(Process):
         Equivalent to ``self.task.deadline``.
         """
         return self._task.firm_deadline
-
-    @property
-    def pred(self):
-        return self._pred
 
     def activate_job(self, cpu):
         self._start_date = self.sim.now()

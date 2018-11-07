@@ -6,10 +6,10 @@ import importlib
 import pkgutil
 import inspect
 
-from simso.core.SchedulerEvent import SchedulerBeginScheduleEvent, \
-    SchedulerEndScheduleEvent, SchedulerBeginActivateEvent, \
-    SchedulerEndActivateEvent, SchedulerBeginTerminateEvent, \
-    SchedulerEndTerminateEvent
+from simso.core.SchedulerEventCode import SchedulerBeginScheduleEventCode, \
+    SchedulerEndScheduleEventCode, SchedulerBeginActivateEventCode, \
+    SchedulerEndActivateEventCode, SchedulerBeginTerminateEventCode, \
+    SchedulerEndTerminateEventCode
 from SimPy.Simulation import Monitor
 
 
@@ -199,22 +199,22 @@ class Scheduler(object):
         self._lock = False
 
     def monitor_begin_schedule(self, cpu):
-        self.monitor.observe(SchedulerBeginScheduleEvent(cpu))
+        self.monitor.observe(SchedulerBeginScheduleEventCode(cpu))
 
     def monitor_end_schedule(self, cpu):
-        self.monitor.observe(SchedulerEndScheduleEvent(cpu))
+        self.monitor.observe(SchedulerEndScheduleEventCode(cpu))
 
     def monitor_begin_activate(self, cpu):
-        self.monitor.observe(SchedulerBeginActivateEvent(cpu))
+        self.monitor.observe(SchedulerBeginActivateEventCode(cpu))
 
     def monitor_end_activate(self, cpu):
-        self.monitor.observe(SchedulerEndActivateEvent(cpu))
+        self.monitor.observe(SchedulerEndActivateEventCode(cpu))
 
     def monitor_begin_terminate(self, cpu):
-        self.monitor.observe(SchedulerBeginTerminateEvent(cpu))
+        self.monitor.observe(SchedulerBeginTerminateEventCode(cpu))
 
     def monitor_end_terminate(self, cpu):
-        self.monitor.observe(SchedulerEndTerminateEvent(cpu))
+        self.monitor.observe(SchedulerEndTerminateEventCode(cpu))
 
 
 def get_schedulers():
